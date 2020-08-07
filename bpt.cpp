@@ -100,20 +100,25 @@ Block *search(uint64_t key){
 			return p;
 	//return nullptr;
 }
-Block* adjust(Block * node,uint64_t key){
-	int split=(MAX_DEGREE-1)/2;
+Block* adjust(Block * node,uint64_t key,int val){
+	int split=(MAX_DEGREE)/2;
 	Block * current=node;
 	Block * prev=node->parent;
 	uint64_t oldkey[MAX_DEGREE];
 	uint64_t oldval[MAX_DEGREE-1];
 	uint64_t target;
 	Block * oldBlock;
-	for (int j=0,i=0;i<MAX_DEGREE-1;i++){
+
+	for (int k=0,j=0,i=0;i<MAX_DEGREE-1;i++){
 		if((key<current->chunk.key[i] ||key==current->chunk.key[i]) && j==0){
 			oldkey[i+j]=key;
 			j++;
 		}
-		oldval[i]=current->chunk.val[i];
+		if((val<current->chunk.val[i] ||val==current->chunk.val[i]) && k==0){
+			oldval[i+k]=val;
+			k++;
+		}
+		oldval[i+k]=current->chunk.val[i];
 		oldkey[i+j]=current->chunk.key[i];
 	}
 	for (int i=0;i<MAX_DEGREE;i++){
@@ -121,12 +126,39 @@ Block* adjust(Block * node,uint64_t key){
 	}
 	target=oldkey[split];
 	while(current->size==MAX_DEGREE){
+		if (prev==nullptr){
+			root=prev=new Block();
+			prev->chunk.key[0]=target;
+			prev->size++;
+			prev->child[0]=current;
+			prev->child[0]->size=0;
+			/******************/
+			prev->child[1]=new Block();
+			prev->child[1]->chunk.val=new int[MAX_DEGREE-1];
+			prev->child[1]->parent=prev;
+			prev->child[1]->is_leaf=true;
+			/******************/
+			for(int i=0;i<MAX_DEGREE;i++){
+				if(oldkey[i]<=target){
+					prev->child[0]->chunk.key[prev->child[0]->size]=oldkey[i];
+					prev->child[0]->chunk.val[prev->child[0]->size]=oldval[i];
+					prev->child[0]->size++;
+				}
+				else{
+
+					prev->child[1]->chunk.key[prev->child[1]->size]=oldkey[i];
+					prev->child[1]->chunk.val[prev->child[1]->size]=oldval[i];
+					prev->child[1]->size++;
+				}
+			}
+			break;
+		}
 		if(current->is_leaf){
 			prev->size++;
 			if(prev->size<MAX_DEGREE){
-				prev.child[prev->size]=new Block();
-				prev->child[prev->size-1]=prev->child[prev->size]->size=0;
-				prev->chunk[prev->size]->parent=prev;
+				prev->child[prev->size]=new Block();
+				prev->child[prev->size-1]->size=prev->child[prev->size]->size=0;
+				prev->child[prev->size]->parent=prev;
 				int oldindex=0,newindex=0;
 				for (int i=0;i<MAX_DEGREE;i++){
 					if(oldval[i]<=target){
@@ -135,7 +167,7 @@ Block* adjust(Block * node,uint64_t key){
 					}
 					else{
 						prev->child[prev->size-1]->size++;
-						prev->child[prev->size-1]->chunk->key[oldindex]=oldval[i];
+						prev->child[prev->size-1]->chunk.key[oldindex]=oldval[i];
 					}
 				}
 			}
@@ -148,6 +180,7 @@ Block* adjust(Block * node,uint64_t key){
 		}
 		current=current->parent;
 		prev=prev->parent;
+
 	}
 }
 void insert(uint64_t key,int val){
@@ -196,7 +229,8 @@ void insert(uint64_t key,int val){
 	//whether the leaf is full -> adjust
 	else{
 		position->size++;
-		Block *newBlock=adjust(position,key);
+		cout <<"adjust\n";
+		adjust(position,key,val);
 	}
 	queue<Block *> q;
 	q.push(root);
@@ -216,7 +250,7 @@ int main(){
 	printTree(q,1);
 	insert(1,1);
 	insert(2,2);
-	insert(3,2);
+	insert(3,3);
 	insert(2,2);
 
 
