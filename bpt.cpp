@@ -230,8 +230,9 @@ void insert(uint64_t key,int val){
 		bool flag=false;
 		for (int i=0;i<MAX_DEGREE-1;i++){
 			if(key<position->chunk.key[i] || key==position->chunk.key[i]){
+				cout <<":))"<<key<<":))"<<position->chunk.key[i];
 				flag=true;
-				for (int j=i+1;j<MAX_DEGREE-1;j++){
+				for (int j=MAX_DEGREE-1;j>i;j--){
 					position->chunk.key[j]=position->chunk.key[j-1];
 					position->chunk.val[j]=position->chunk.val[j-1];
 				}
@@ -278,6 +279,9 @@ int main(){
 	insert(4,4);
 	insert(5,5);
 	insert(1,1);
+
+	insert(1,1);
+
 
 	/*build a tree artificially
 	root=new Block();
