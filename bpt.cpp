@@ -6,10 +6,10 @@ using namespace std;
 
 struct Chunk
 {
-	uint64_t key[MAX_DEGREE-1];
+	uint64_t key[MAX_DEGREE];
 	int *val;
 	Chunk (){
-		for (int i = 0; i < MAX_DEGREE-1; ++i){
+		for (int i = 0; i < MAX_DEGREE; ++i){
 			key[i]=ULLONG_MAX;
 		}
 	}
@@ -39,7 +39,7 @@ void printBlock(Block *p){
 	if(p->is_leaf){
 		for (int i=0;i<MAX_DEGREE-1;i++)
 			if (p->chunk.key[i]!=ULLONG_MAX)
-				cout << p->chunk.key[i]<<"&"<<p->chunk.val[i]<<" ";
+				cout <<p->chunk.key[i]<<"&"<<p->chunk.val[i]<<" ";
 			else 
 				cout << "__ ";
 	}
@@ -59,12 +59,14 @@ void printTree(queue<Block *> q,int level){
 		return;
 	}
 	queue<Block *>tmp;
-	cout <<"\n*****level: "<<level<<"size: "<<q.front()->size<<"*****\n | ";
+	cout <<"\n*****level: "<<level<<"*****\n | ";
 	while(q.size()!=0){
+		cout <<"size"<<q.front()->size<<" ";
 		printBlock(q.front());
 		for(int i=0;i<MAX_DEGREE;i++){
-			if(q.front()->child[i]!=nullptr)
+			if(q.front()->child[i]!=nullptr){
 				tmp.push(q.front()->child[i]);
+			}
 		}
 		q.pop();
 	}
@@ -103,96 +105,107 @@ Block *search(uint64_t key){
 Block* adjust(Block * node,uint64_t key,int val){
 	int split=(MAX_DEGREE)/2;
 	Block * current=node;
-	Block * prev=node->parent;
-	uint64_t oldkey[MAX_DEGREE];
-	uint64_t oldval[MAX_DEGREE-1];
-	uint64_t target;
-	Block * oldBlock;
-
-	for (int k=0,j=0,i=0;i<MAX_DEGREE-1;i++){
-		if((key<current->chunk.key[i] ||key==current->chunk.key[i]) && j==0){
-			oldkey[i+j]=key;
-			j++;
+	Block * prev=node->parent;	
+	while(current->size==MAX_DEGREE-1){
+		uint64_t oldkey[MAX_DEGREE]={};
+		uint64_t oldval[MAX_DEGREE]={};
+		uint64_t target;
+		Block * oldBlock[MAX_DEGREE]={nullptr};
+		for (int j=0,i=0;i<MAX_DEGREE-1;i++){
+			if((key<current->chunk.key[i] ||key==current->chunk.key[i]) && j==0){
+				oldkey[i]=key;
+				oldval[i]=val;
+				j++;
+			}
+			oldBlock[i]=current->child[i];
+			oldval[i+j]=current->chunk.val[i];
+			oldkey[i+j]=current->chunk.key[i];
+			if(i==MAX_DEGREE-2&&j==0){
+				oldkey[i+1]=key;
+				oldval[i+1]=val;
+			}
 		}
-		if((val<current->chunk.val[i] ||val==current->chunk.val[i]) && k==0){
-			oldval[i+k]=val;
-			k++;
+		oldBlock[MAX_DEGREE-1]=current->child[MAX_DEGREE-1];
+		for (int i=0;i<MAX_DEGREE;i++){
+			cout <<oldkey[i]<<" ";
 		}
-		oldval[i+k]=current->chunk.val[i];
-		oldkey[i+j]=current->chunk.key[i];
-	}
-	for (int i=0;i<MAX_DEGREE;i++){
-		cout <<oldkey[i]<<" ";
-	}
-	target=oldkey[split];
-	while(current->size==MAX_DEGREE){
+		target=oldkey[split];
+		bool increment=true;
 		if (prev==nullptr){
+			increment=false;
+			cout <<"creat new root\n";
 			root=prev=new Block();
 			prev->chunk.key[0]=target;
-			prev->size++;
-			prev->child[0]=current;
-			prev->child[0]->size=0;
-			/******************/
-			prev->child[1]=new Block();
-			prev->child[1]->chunk.val=new int[MAX_DEGREE-1];
-			prev->child[1]->parent=prev;
-			prev->child[1]->is_leaf=true;
-			/******************/
-			for(int i=0;i<MAX_DEGREE;i++){
-				if(oldkey[i]<=target){
-					prev->child[0]->chunk.key[prev->child[0]->size]=oldkey[i];
-					prev->child[0]->chunk.val[prev->child[0]->size]=oldval[i];
-					prev->child[0]->size++;
-				}
-				else{
-
-					prev->child[1]->chunk.key[prev->child[1]->size]=oldkey[i];
-					prev->child[1]->chunk.val[prev->child[1]->size]=oldval[i];
-					prev->child[1]->size++;
-				}
-			}
-			break;
+			
+			current->parent=prev;
 		}
-		if(current->is_leaf){
+		else{
+			prev->chunk.key[prev->size]=target;
+		}
+
+			/******************/
 			prev->size++;
-			if(prev->size<MAX_DEGREE){
-				prev->child[prev->size]=new Block();
-				prev->child[prev->size-1]->size=prev->child[prev->size]->size=0;
-				prev->child[prev->size]->parent=prev;
-				int oldindex=0,newindex=0;
-				for (int i=0;i<MAX_DEGREE;i++){
-					if(oldval[i]<=target){
-						prev->child[prev->size]->size++;
-						prev->child[prev->size]->chunk.key[newindex]=oldval[i];
-					}
-					else{
+			prev->child[prev->size-1]=current;
+			prev->child[prev->size]=new Block();
+			prev->child[prev->size]->parent=prev;
+			if(prev->child[prev->size-1]->is_leaf){
+				prev->child[prev->size]->is_leaf=true;
+				prev->child[prev->size]->chunk.val=new int[MAX_DEGREE];
+			}
+			prev->child[prev->size-1]->size=0;
+			for (int i=0;i<MAX_DEGREE-1;i++){
+				prev->child[prev->size-1]->chunk.val[i]=0;
+				prev->child[prev->size-1]->chunk.key[i]=ULLONG_MAX;
+			}
+			prev->child[prev->size]->size=0;
+			/******************/
+			if(prev->child[prev->size-1]->is_leaf){
+				for(int i=0;i<MAX_DEGREE;i++){
+					//old block
+					if(i < split){
+						prev->child[prev->size-1]->chunk.key[prev->child[prev->size-1]->size]=oldkey[i];
+						prev->child[prev->size-1]->chunk.val[prev->child[prev->size-1]->size]=oldval[i];
 						prev->child[prev->size-1]->size++;
-						prev->child[prev->size-1]->chunk.key[oldindex]=oldval[i];
+					}
+					//new block
+					else{
+						prev->child[prev->size]->chunk.key[prev->child[prev->size]->size]=oldkey[i];
+						prev->child[prev->size]->chunk.val[prev->child[prev->size]->size]=oldval[i];
+						prev->child[prev->size]->size++;
 					}
 				}
 			}
 			else{
-
+				for(int i=0;i<MAX_DEGREE-1;i++){
+						//old block
+						if(i<split){
+							prev->child[prev->size-1]->chunk.key[prev->child[prev->size-1]->size]=oldkey[i];
+							prev->child[prev->size-1]->size++;
+						}
+						else if(i==split)
+							continue;
+						//new block
+						else{
+							prev->child[prev->size]->chunk.key[prev->child[prev->size]->size]=oldkey[i];
+							prev->child[prev->size]->size++;
+						}
+					}
 			}
-		}
-		else{
 
-		}
 		current=current->parent;
 		prev=prev->parent;
-
 	}
 }
 void insert(uint64_t key,int val){
 	//case:size of tree is 0 ->build a new block
-	
+	cout <<"\n============insert============"<<key<<endl<<endl;
 	if (root==nullptr){
 		//in this case, root is the leaf node
 		root=new Block();
 		root->size++;
 		root->is_leaf=true;
 		root->chunk.key[0]=key;
-		root->chunk.val=new int[MAX_DEGREE-1]();
+		root->chunk.val=new int[MAX_DEGREE]();
 		root->chunk.val[0]=val;
 		return;
 	}
@@ -214,21 +227,30 @@ void insert(uint64_t key,int val){
 	}
 	//whether the leaf is not full
 	if(position->size!=MAX_DEGREE-1){
-		int i=0;
-		for ( i=0;i<MAX_DEGREE-1;i++)
-			if(key<position->chunk.key[i] || key==position->chunk.key[i] )
+		bool flag=false;
+		for (int i=0;i<MAX_DEGREE-1;i++){
+			if(key<position->chunk.key[i] || key==position->chunk.key[i]){
+				flag=true;
+				for (int j=i+1;j<MAX_DEGREE-1;j++){
+					position->chunk.key[j]=position->chunk.key[j-1];
+					position->chunk.val[j]=position->chunk.val[j-1];
+				}
+				position->chunk.key[i]=key;
+				position->chunk.val[i]=val;
 				break;
-		for (int j=i;j<MAX_DEGREE-2;j++){
-			position->chunk.key[j+1]=position->chunk.key[j];
-			position->chunk.val[j+1]=position->chunk.val[j];
+			}
 		}
-		position->chunk.key[i]=key;
-		position->chunk.val[i]=val;
+		if(!flag){
+			cout <<"12415135135";
+			position->chunk.key[MAX_DEGREE-1]=key;
+			position->chunk.val[MAX_DEGREE-1]=val;
+		}
+
 		position->size++;
 	}
 	//whether the leaf is full -> adjust
 	else{
-		position->size++;
+		//position->size++;
 		cout <<"adjust\n";
 		adjust(position,key,val);
 	}
@@ -252,7 +274,10 @@ int main(){
 	insert(2,2);
 	insert(3,3);
 	insert(2,2);
-
+	insert(3,3);
+	insert(4,4);
+	insert(5,5);
+	insert(1,1);
 
 	/*build a tree artificially
 	root=new Block();
