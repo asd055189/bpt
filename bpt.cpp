@@ -7,7 +7,7 @@ using namespace std;
 struct Chunk
 {
 	uint64_t key[MAX_DEGREE];
-	int *val;
+	int val[MAX_DEGREE]={0};
 	Chunk (){
 		for (int i = 0; i < MAX_DEGREE; ++i){
 			key[i]=ULLONG_MAX;
@@ -19,7 +19,7 @@ struct Block
 	bool is_leaf;
 	int size;//size of block
 	Chunk chunk;//include hash value and PBA
-	struct Block* child[MAX_DEGREE];
+	struct Block* child[MAX_DEGREE+1];
 	struct Block* parent;
 	struct Block* next;
 	Block(){
@@ -102,22 +102,31 @@ Block *search(uint64_t key){
 			return p;
 	//return nullptr;
 }
-Block* adjust(Block * node,uint64_t key,int val){
+void adjust(Block * node,uint64_t key,int val){
 	int split=(MAX_DEGREE)/2;
 	Block * current=node;
 	Block * prev=node->parent;	
 	while(current->size==MAX_DEGREE-1){
-		uint64_t oldkey[MAX_DEGREE]={};
-		uint64_t oldval[MAX_DEGREE]={};
+		uint64_t oldkey[MAX_DEGREE]={ULLONG_MAX};
+		uint64_t oldval[MAX_DEGREE]={ULLONG_MAX};
 		uint64_t target;
-		Block * oldBlock[MAX_DEGREE]={nullptr};
+		Block ** oldBlock=new Block*[MAX_DEGREE+1];
+
+		int pos=-1;
+
+		target=oldkey[split];
+		if(prev==nullptr){
+			cout <<"creat new root\n";
+			root=prev=new Block();			
+			current->parent=prev;
+		}
 		for (int j=0,i=0;i<MAX_DEGREE-1;i++){
 			if((key<current->chunk.key[i] ||key==current->chunk.key[i]) && j==0){
+				pos=i;
 				oldkey[i]=key;
 				oldval[i]=val;
 				j++;
 			}
-			oldBlock[i]=current->child[i];
 			oldval[i+j]=current->chunk.val[i];
 			oldkey[i+j]=current->chunk.key[i];
 			if(i==MAX_DEGREE-2&&j==0){
@@ -125,73 +134,56 @@ Block* adjust(Block * node,uint64_t key,int val){
 				oldval[i+1]=val;
 			}
 		}
-		oldBlock[MAX_DEGREE-1]=current->child[MAX_DEGREE-1];
+		cout<<"pos: "<<pos<<endl;
 		for (int i=0;i<MAX_DEGREE;i++){
 			cout <<oldkey[i]<<" ";
 		}
-		target=oldkey[split];
-		bool increment=true;
-		if (prev==nullptr){
-			increment=false;
-			cout <<"creat new root\n";
-			root=prev=new Block();
-			prev->chunk.key[0]=target;
-			
-			current->parent=prev;
-		}
-		else{
-			prev->chunk.key[prev->size]=target;
-		}
-
-			/******************/
-			prev->size++;
-			prev->child[prev->size-1]=current;
-			prev->child[prev->size]=new Block();
-			prev->child[prev->size]->parent=prev;
-			if(prev->child[prev->size-1]->is_leaf){
-				prev->child[prev->size]->is_leaf=true;
-				prev->child[prev->size]->chunk.val=new int[MAX_DEGREE];
+		for (int j=0,i=0;i<MAX_DEGREE;i++){
+			oldBlock[i]=prev->child[i];
+			if(i==pos){
+				oldBlock[i+1]=new Block();
+				if(current->is_leaf)
+					oldBlock[i+1]->is_leaf=true;
+				oldBlock[i+1]->parent=prev;
+				oldBlock[i]->next=oldBlock[i+1];
+				j++;
 			}
-			prev->child[prev->size-1]->size=0;
-			for (int i=0;i<MAX_DEGREE-1;i++){
-				prev->child[prev->size-1]->chunk.val[i]=0;
-				prev->child[prev->size-1]->chunk.key[i]=ULLONG_MAX;
-			}
-			prev->child[prev->size]->size=0;
-			/******************/
-			if(prev->child[prev->size-1]->is_leaf){
-				for(int i=0;i<MAX_DEGREE;i++){
-					//old block
-					if(i < split){
-						prev->child[prev->size-1]->chunk.key[prev->child[prev->size-1]->size]=oldkey[i];
-						prev->child[prev->size-1]->chunk.val[prev->child[prev->size-1]->size]=oldval[i];
-						prev->child[prev->size-1]->size++;
-					}
-					//new block
-					else{
-						prev->child[prev->size]->chunk.key[prev->child[prev->size]->size]=oldkey[i];
-						prev->child[prev->size]->chunk.val[prev->child[prev->size]->size]=oldval[i];
-						prev->child[prev->size]->size++;
-					}
+		}
+		for(int i=0;i<MAX_DEGREE;i++)
+			prev->child[i]=oldBlock[i];
+		if(current->is_leaf){
+			for(int i=0;i<MAX_DEGREE;i++){
+				//old block
+				if(i < split){
+					current->chunk.key[current->size]=oldkey[i];
+					current->chunk.val[current->size]=oldval[i];
+					current->size++;
+				}
+				//new block
+				else{
+					prev->child[pos+1]->chunk.key[prev->child[pos+1]->size]=oldkey[i];
+					prev->child[pos+1]->chunk.val[prev->child[pos+1]->size]=oldval[i];
+					prev->child[pos+1]->size++;
 				}
 			}
-			else{
-				for(int i=0;i<MAX_DEGREE-1;i++){
-						//old block
-						if(i<split){
-							prev->child[prev->size-1]->chunk.key[prev->child[prev->size-1]->size]=oldkey[i];
-							prev->child[prev->size-1]->size++;
-						}
-						else if(i==split)
-							continue;
-						//new block
-						else{
-							prev->child[prev->size]->chunk.key[prev->child[prev->size]->size]=oldkey[i];
-							prev->child[prev->size]->size++;
-						}
+		}
+		else{
+			for(int i=0;i<MAX_DEGREE-1;i++){
+					//old block
+					if(i<split){
+						prev->child[pos]->chunk.key[prev->child[pos]->size]=oldkey[i];
+						prev->child[pos]->size++;
 					}
-			}
-
+					else if(i==split)
+						continue;
+					//new block
+					else{
+						prev->child[pos+1]->chunk.key[prev->child[pos+1]->size]=oldkey[i];
+						prev->child[pos+1]->size++;
+					}
+				}
+		}
+		prev->size++;
 		current=current->parent;
 		prev=prev->parent;
 	}
@@ -205,7 +197,7 @@ void insert(uint64_t key,int val){
 		root->size++;
 		root->is_leaf=true;
 		root->chunk.key[0]=key;
-		root->chunk.val=new int[MAX_DEGREE]();
+
 		root->chunk.val[0]=val;
 		return;
 	}
@@ -227,11 +219,8 @@ void insert(uint64_t key,int val){
 	}
 	//whether the leaf is not full
 	if(position->size!=MAX_DEGREE-1){
-		bool flag=false;
 		for (int i=0;i<MAX_DEGREE-1;i++){
 			if(key<position->chunk.key[i] || key==position->chunk.key[i]){
-				cout <<":))"<<key<<":))"<<position->chunk.key[i];
-				flag=true;
 				for (int j=MAX_DEGREE-1;j>i;j--){
 					position->chunk.key[j]=position->chunk.key[j-1];
 					position->chunk.val[j]=position->chunk.val[j-1];
@@ -240,11 +229,6 @@ void insert(uint64_t key,int val){
 				position->chunk.val[i]=val;
 				break;
 			}
-		}
-		if(!flag){
-			cout <<"12415135135";
-			position->chunk.key[MAX_DEGREE-1]=key;
-			position->chunk.val[MAX_DEGREE-1]=val;
 		}
 
 		position->size++;
@@ -262,12 +246,14 @@ void insert(uint64_t key,int val){
 }
 
 int main(){
+	/*
 	Block bb;
 	cout <<"size of block is "<<sizeof(bb )<<endl;
 	cout <<"size of chunk is "<<sizeof(bb.chunk )<<endl;
 	cout <<"size of block* is "<<sizeof(bb.parent )<<endl;
 	cout <<"size of block* is "<<sizeof(bb.child )<<endl;
 	cout <<"size of bool is "<<sizeof(bb.is_leaf )<<endl;
+	*/
 	queue<Block *>q;
 	q.push(root);
 	printTree(q,1);
