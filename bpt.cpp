@@ -6,7 +6,7 @@ using namespace std;
 
 struct Chunk
 {
-	uint64_t key[MAX_DEGREE];
+	uint64_t key[MAX_DEGREE]={0};
 	int val[MAX_DEGREE] = { 0 };
 	Chunk() {
 		for (int i = 0; i < MAX_DEGREE; ++i) {
@@ -38,14 +38,14 @@ void printBlock(Block *p) {
 		return;
 	if (p->is_leaf) {
 		for (int i = 0; i < MAX_DEGREE ; i++)
-			if (p->chunk.key[i] != ULLONG_MAX)
+			if (i<p->size)
 				cout << p->chunk.key[i] << "&" << p->chunk.val[i] << " ";
 			else
 				cout << "__ ";
 	}
 	else {
 		for (int i = 0; i < MAX_DEGREE ; i++) {
-			if (p->chunk.key[i] != ULLONG_MAX)
+			if (i<p->size)
 				cout << p->chunk.key[i] << " ";
 			else
 				cout << "__ ";
@@ -107,8 +107,8 @@ void adjust(Block * node, uint64_t key, int val) {
 	Block * current = node;
 	Block * prev = node->parent;
 	while (true ) {
-		uint64_t oldkey[MAX_DEGREE+1] = { ULLONG_MAX };
-		uint64_t oldval[MAX_DEGREE+1] = { ULLONG_MAX };
+		uint64_t oldkey[MAX_DEGREE+1] ;
+		uint64_t oldval[MAX_DEGREE+1] ;
 		uint64_t target;
 		Block ** oldBlock = new Block*[MAX_DEGREE + 1];
 		for (int i = 0; i < MAX_DEGREE + 1; i++)
@@ -182,8 +182,6 @@ void adjust(Block * node, uint64_t key, int val) {
 			prev->child[i] = oldBlock[i];
 		}
 			current->size = 0;
-			for (int i = 0; i < MAX_DEGREE; i++)
-				current->chunk.val[i]=current->chunk.key[i] = ULLONG_MAX;
 		if (current->is_leaf) {
 			for (int i = 0; i < MAX_DEGREE; i++) {
 				//old block
@@ -285,7 +283,7 @@ void insert(uint64_t key, int val) {
 int main() {
 	vector <int> arr;
 	srand(time(NULL));
-	for (int i = 0; i < 500; i++) {
+	for (int i = 0; i < 1000; i++) {
 		int random = rand() % 3000 + 1;
 		arr.push_back(random);
 		insert(random, random);
@@ -295,7 +293,7 @@ int main() {
 	sort(arr.begin(),arr.end());
 	while (B != nullptr) {
 		for (int i = 0; i < MAX_DEGREE; i++) {
-			if (B->chunk.key[i] != ULLONG_MAX) {
+			if (i<B->size) {
 				if(B->chunk.key[i]!= arr[index])
 					cout << B->chunk.key[i] << " " << arr[index]<<endl;
 					index++;
@@ -307,7 +305,7 @@ int main() {
 	q.push(root);
 	printTree(q,0);
 	cout << endl;
-	if(index==500)
+	if(index==1000)
 		cout << "index" << index<<endl<<"============correct============";
 	
 }
