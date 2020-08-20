@@ -2,7 +2,7 @@
 
 using namespace std;
 
-#define MAX_DEGREE 4//max. item of each block
+#define MAX_DEGREE 5//max. item of each block
 
 struct Chunk
 {
