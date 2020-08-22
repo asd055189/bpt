@@ -1,8 +1,7 @@
-#include <bits/stdc++.h>
 
 using namespace std;
 
-#define MAX_DEGREE 5//max. item of each block
+#define MAX_DEGREE 35//max. item of each block
 
 struct Chunk
 {
@@ -110,7 +109,7 @@ void adjust(Block * node, uint64_t key, int val) {
 		uint64_t oldkey[MAX_DEGREE+1] ;
 		uint64_t oldval[MAX_DEGREE+1] ;
 		uint64_t target;
-		Block ** oldBlock = new Block*[MAX_DEGREE + 1];
+		Block ** oldBlock = new Block*[MAX_DEGREE + 2];
 		for (int i = 0; i < MAX_DEGREE + 1; i++)
 			oldBlock[i] = nullptr;
 
@@ -133,10 +132,6 @@ void adjust(Block * node, uint64_t key, int val) {
 			}
 			oldval[i + j] = current->chunk.val[i];
 			oldkey[i + j] = current->chunk.key[i];
-			if (i == MAX_DEGREE - 2 && j == 0) {
-				oldkey[i + 1] = key;
-				oldval[i + 1] = val;
-			}
 		}
 		target = oldkey[split];
 		for (int i = 0; i < MAX_DEGREE; i++) {
@@ -278,34 +273,4 @@ void insert(uint64_t key, int val) {
 		adjust(position, key, val);
 	}
 
-}
-
-int main() {
-	vector <int> arr;
-	srand(time(NULL));
-	for (int i = 0; i < 1000; i++) {
-		int random = rand() % 3000 + 1;
-		arr.push_back(random);
-		insert(random, random);
-	}
-	Block *B = search(0);
-	int index = 0;
-	sort(arr.begin(),arr.end());
-	while (B != nullptr) {
-		for (int i = 0; i < MAX_DEGREE; i++) {
-			if (i<B->size) {
-				if(B->chunk.key[i]!= arr[index])
-					cout << B->chunk.key[i] << " " << arr[index]<<endl;
-					index++;
-			}
-		}
-		B = B->next;
-	}
-	queue<Block *>q;
-	q.push(root);
-	printTree(q,0);
-	cout << endl;
-	if(index==1000)
-		cout << "index" << index<<endl<<"============correct============";
-	
 }
